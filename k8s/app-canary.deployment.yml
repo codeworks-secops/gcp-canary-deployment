@@ -1,9 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: canary-deployment
+  name: canary
+  namespace: stable-canary
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: nodeapp
@@ -15,7 +16,7 @@ spec:
         track: canary
     spec:
       containers:
-      - image: elyhamza/app-canary:latest
+      - image: gcr.io/$PROJECT_NAME/nodeapp-canary:1.0.0
         name: app-canary
         imagePullPolicy: Always
         ports:
@@ -23,4 +24,4 @@ spec:
         resources:
           limits:
             memory: "128Mi"
-            cpu: "200m"
+            cpu: "10m"

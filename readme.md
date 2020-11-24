@@ -1,68 +1,140 @@
-1 -  Build Docker images
+1- Architecture
 ===
 
-### Stable Application
+[Link to the Architecture Diagram](https://app.diagrams.net/#G128JG979SFk0PAHYAi3uj1BWMQYXsDPSt)
 
-```bash
-$> cd nodeapp/stable
-$> docker build -t app-stable:latest .
-$> docker tag app-stable:latest elyhamza/app-stable:latest
-$> docker push elyhamza/app-stable:latest
-```
-### Canary Application
-
-```bash
-$> cd nodeapp/canary
-$> docker build -t app-canary:latest .
-$> docker tag app-canary:latest elyhamza/app-canary:latest
-$> docker push elyhamza/app-canary:latest
-```
-
-2 - Create a new Namespace 
+2- Create new GCP Project
 ===
 
 ```bash
-$> kubectl create ns stable-canary
+# Get billing accounts list
+$> gcloud alpha billing accounts list
+# Get the Organisation ID
+ORGANISATION_ID=$(gcloud organizations describe codeworks.fr --format=json | jq '.name' | cut -f 2 -d '/' | sed 's/"//g')
+# Export a new environment variable named `PROJECT_NAME`
+$> export PROJECT_NAME=codeday-canary-deployment-demo
+# Create a new project
+$> gcloud projects create ${PROJECT_NAME} --organization=${ORGANISATON_ID}
+# Grap the project number
+$> PROJECT_NUMBER=$(gcloud projects list --format=json | jq -c '.[] | select(.name == env.PROJECT_NAME) | .projectNumber' | sed 's/"//g')
+# Link the project to the billing account
+$> gcloud alpha billing accounts projects link ${PROJECT_NUMBER} --account-id=0150EE-171E17-3E357F
+# Check the console if you want !!!
 ```
 
-2 - Create Deployment Resource 
+3- Init glcoud
+===
+
+```bash
+# Configure gcloud to match account / project / zone to use from scratch
+$> gcloud init
+# Display zones list
+$> gcloud compute zones list
+# Checl all of the configuration
+$> gcloud config list
+```
+
+4- Google Container Registry
+===
+
+- Build docker images
+
+    ```bash
+    # Stable version
+    $> cd nodeapp/stable
+    $> docker build -t gcr.io/${PROJECT_NAME}/nodeapp-stable:1.0.0 .
+
+    # Canary version
+    $> cd nodeapp/canary
+    $> docker build -t gcr.io/${PROJECT_NAME}/nodeapp-canary:1.0.0 .
+    ```
+
+- Launch the Docker image in your local host 
+
+    ```bash
+    # Launch stable image
+    docker run --publish 9000:7070 --detach --name stable-app gcr.io/${PROJECT_NAME}/nodeapp-stable:1.0.0
+
+    # Launch canary image
+    docker run --publish 9001:7070 --detach --name canary-app gcr.io/${PROJECT_NAME}/nodeapp-canary:1.0.0
+    ```
+
+    - Run images from your localhost
+
+        [Stable Version](localhost:9000)
+
+        [Canary Version](localhost:9001)
+
+    - Run images from the containers
+
+        [Stable Version](STABLE_CONTAINER_IP_ADDRESS:7070)
+
+        [Canary Version](CANARY_CONTAINER_IP_ADDRESS:7070)
+
+- Login
+
+    ```bash
+    # set up a credential helper
+    $> gcloud auth configure-docker
+    ```
+
+- Push all of images to the GCR
+    
+    ```bash
+    # Stable version
+    $> docker push gcr.io/${PROJECT_NAME}/nodeapp-stable:1.0.0
+
+    # Canary version
+    $> docker push gcr.io/${PROJECT_NAME}/nodeapp-canary:1.0.0
+    ```
+
+5- Create new cluster
+===
+
+```bash
+$> gcloud container clusters create stable-canary-cluster --num-nodes=2
+```
+
+6- It's time to use Kubectl !
+===
+
+- Create a new Namespace 
+
+    ```bash
+    $> kubectl create ns stable-canary
+    ```
+
+- Create Deployment Resource  
+
+    * Stable Application
+
+        ```bash
+        $> cat ./k8s/app-stable.deployment.yml | sh ./k8s/config.sh | kubectl create --save-config --record -f -
+        ```
+
+    * Canary Application
+
+        ```bash
+        $> cat ./k8s/app-canary.deployment.yml | sh ./k8s/config.sh | kubectl create --save-config --record -f -
+        ```
+
+- Create Service Resource 
+
+    ```bash
+    $> kubectl create -f ./k8s/app.service.yml -n stable-canary --save-config --record
+    ```
+
+7-  Check Running Applications
 === 
 
-### Stable Application
+- Using browsers and the external service IP address
 
-```bash
-$> kubectl create -f app-stable.deployment.yml -n stable-canary --save-config --record
-```
+- Using a shell script : update the script ./curl_loadbalancer_service.sh with the right external service IP address
 
-### Canary Application
-
-```bash
-$> kubectl create -f app-canary.deployment.yml  -n stable-canary --save-config --record
-```
-
-3 - Create Service Resource 
-=== 
-
-```bash
-$> kubectl create -f app.service.yml -n stable-canary --save-config --record
-```
-
-4 -  Check Running Applications
-=== 
-
-- Using browsers 
-
-```bash
-$> minikube list service
-```
-
-- Using script : update the script ./curl_minikube_node_service.sh with the right service IP address
-
-```bash
-$> ./curl_minikube_node_service.sh
-```
-
-5 -  Scale Canary / Stable Deployment
+    ```bash
+    $> ./curl_loadbalancer_service.sh
+    ```
+8 -  Scale Canary / Stable version
 === 
 
 update app-stable.deployment.yml => **replicas: 2**
@@ -70,12 +142,12 @@ update app-stable.deployment.yml => **replicas: 2**
 update app-canary.deployment.yml => **replicas: 2**
 
 ```bash
-$> kubectl apply -f app-stable.deployment.yml -n stable-canary --record
+$> cat ./k8s/app-stable.deployment.yml | sh ./k8s/config.sh | kubectl apply --record -f -
 
-$> kubectl apply -f app-canary.deployment.yml -n stable-canary --record
+$> cat ./k8s/app-canary.deployment.yml | sh ./k8s/config.sh | kubectl apply --record -f -
 ```
 
-6 -  Scale down Stable Deployment / Route all traffic to the Canary Deployment
+9 -  Scale down Stable version / Route all traffic to the Canary version
 === 
 
 update app-stable.deployment.yml => **replicas: 0**
@@ -83,7 +155,48 @@ update app-stable.deployment.yml => **replicas: 0**
 update app-canary.deployment.yml => **replicas: 4**
 
 ```bash
-$> kubectl apply -f app-stable.deployment.yml -n stable-canary --record
+$> cat ./k8s/app-stable.deployment.yml | sh ./k8s/config.sh | kubectl apply --record -f -
 
-$> kubectl apply -f app-canary.deployment.yml -n stable-canary --record
+$> cat ./k8s/app-canary.deployment.yml | sh ./k8s/config.sh | kubectl apply --record -f -
 ```
+
+10- Deleting your GCP resources
+===
+
+- Delete Services
+    
+    ```bash
+    $> kubectl delete service nodeapp-service -n stable-canary
+    ```
+
+- Delete Deloyments
+
+    ```bash
+    $>  kubectl delete deployment stable -n stable-canary
+    $>  kubectl delete deployment canary -n stable-canary
+    ```
+
+- Delete Namespace
+
+    ```bash
+    $>  kubectl delete ns stable-canary
+    ```
+
+- Delete Cluster
+    
+    ```bash
+    $> gcloud container clusters delete stable-canary-cluster
+    ```
+
+- Delete a specific images
+
+    ```bash
+    $> gcloud container images delete gcr.io/${PROJECT_NAME}/nodeapp-stable:1.0.0
+    $> gcloud container images delete gcr.io/${PROJECT_NAME}/nodeapp-canary:1.0.0
+    ```
+
+- Delete GCP Project
+
+    ```bash
+    $> gcloud projects delete $PROJECT_NAME
+    ```

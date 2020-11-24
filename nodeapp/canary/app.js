@@ -18,8 +18,7 @@ var handler = function(request, response) {
          } else {
             response.writeHead(200, { 'Content-Type': 'text/html' });
             response.write(data.toString());
-         }
-   
+         }   
          response.end();
     });
 }

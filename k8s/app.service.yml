@@ -2,6 +2,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: nodeapp-service
+  namespace: stable-canary
   labels:
     app: nodeapp
 spec:
