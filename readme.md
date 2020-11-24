@@ -59,13 +59,13 @@ $> gcloud config list
     docker run --publish 9001:7070 --detach --name canary-app gcr.io/${PROJECT_NAME}/nodeapp-canary:1.0.0
     ```
 
-    - Run images from your localhost
+    - Test containers using localhost
 
         [Stable Version](localhost:9000)
 
         [Canary Version](localhost:9001)
 
-    - Run images from the containers
+    - Test containers using internal IP address
 
         [Stable Version](STABLE_CONTAINER_IP_ADDRESS:7070)
 
