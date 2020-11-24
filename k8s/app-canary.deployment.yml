@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canary-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nodeapp
+      track: canary
+  template:
+    metadata:
+      labels:
+        app: nodeapp
+        track: canary
+    spec:
+      containers:
+      - image: elyhamza/app-canary:latest
+        name: app-canary
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 7070
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "200m"

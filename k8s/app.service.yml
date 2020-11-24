@@ -1,0 +1,13 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: nodeapp-service
+  labels:
+    app: nodeapp
+spec:
+  type: LoadBalancer
+  selector:
+    app: nodeapp
+  ports:
+    - port: 9090
+      targetPort: 7070

@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stable-deployment
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: nodeapp
+      track: stable
+  template:
+    metadata:
+      labels:
+        app: nodeapp
+        track: stable
+    spec:
+      containers:
+      - image: elyhamza/app-stable:latest
+        name: app-stable
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 7070
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
