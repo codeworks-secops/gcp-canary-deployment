@@ -15,7 +15,7 @@ ORGANISATION_ID=$(gcloud organizations describe codeworks.fr --format=json | jq 
 $> export PROJECT_NAME=codeday-canary-deployment-demo
 # Create a new project
 $> gcloud projects create ${PROJECT_NAME} --organization=${ORGANISATON_ID}
-# Grap the project number
+# Grab the project number
 $> PROJECT_NUMBER=$(gcloud projects list --format=json | jq -c '.[] | select(.name == env.PROJECT_NAME) | .projectNumber' | sed 's/"//g')
 # Link the project to the billing account
 $> gcloud alpha billing accounts projects link ${PROJECT_NUMBER} --account-id=0150EE-171E17-3E357F
